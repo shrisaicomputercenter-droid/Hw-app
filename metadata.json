@@ -1,0 +1,8 @@
+{
+  "name": "Remix Class 5 Homework Hub",
+  "description": "A secure app for Class 5 students to track homework and teachers to assign tasks with private chat support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
