@@ -83,18 +83,6 @@ export interface CompletionHistoryRecord {
   category?: StudentCategoryType;
 }
 
-export interface AnnouncementRecord {
-  id: string;
-  title: string;
-  content: string;
-  category: 'general' | 'exam' | 'holiday' | 'urgent' | 'homework';
-  postedBy: string;
-  teacherSubject?: string;
-  postedAt: string;
-  attachments?: PdfDocumentRecord[];
-  readBy?: number[];
-}
-
 interface PortalDatabase {
   homework: Record<string, HomeworkRecord>;
   categoryHomework?: Record<string, Record<string, HomeworkRecord>>; // subject -> { all?: hw, beginner?: hw, progressive?: hw, proficient?: hw }
@@ -111,7 +99,6 @@ interface PortalDatabase {
   };
   homeworkHistory?: HomeworkHistoryRecord[];
   completionHistory?: CompletionHistoryRecord[];
-  announcements?: AnnouncementRecord[];
 }
 
 // Student dataset
@@ -345,6 +332,9 @@ function getTodaySchoolDate(): string {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// No default learning-level categories are pre-assigned anymore.
+// A student stays "unassigned" (treated as 'all'/general homework) until
+// a teacher explicitly picks Beginner, Progressive or Proficient for them.
 const DEFAULT_SERVER_STUDENT_CATEGORIES: Record<string, StudentCategoryType> = {};
 
 function getDefaultDB(): PortalDatabase {
@@ -404,7 +394,7 @@ function getDefaultDB(): PortalDatabase {
       maths: {},
       hindi: {},
     },
-    studentCategories: {},
+    studentCategories: { ...DEFAULT_SERVER_STUDENT_CATEGORIES },
     completions,
     doubts: [],
     teacherPasswords: { ...DEFAULT_TEACHER_PASSWORDS },
@@ -422,7 +412,6 @@ function getDefaultDB(): PortalDatabase {
     },
     homeworkHistory: [],
     completionHistory: [],
-    announcements: [],
   };
 }
 
@@ -445,9 +434,6 @@ function seedHistoryIfEmpty(data: PortalDatabase) {
   if (!data.completionHistory) {
     data.completionHistory = [];
   }
-  if (!data.announcements) {
-    data.announcements = [];
-  }
 
   // Remove any legacy dummy/seeded homework history entries (user requested: "delete your all inbuilt hw")
   data.homeworkHistory = (data.homeworkHistory || []).filter((h) => {
@@ -458,7 +444,7 @@ function seedHistoryIfEmpty(data: PortalDatabase) {
     return !c.id.startsWith('seed_');
   });
 
-  // Ensure student categories initialized without forcing default types
+  // Student categories are only set once a teacher explicitly assigns one.
   if (!data.studentCategories) {
     data.studentCategories = {};
   }
@@ -790,7 +776,7 @@ async function startServer() {
       token,
       student: {
         ...matchedStudent,
-        category: dbData.studentCategories?.[matchedStudent.rollNo.toString()] || DEFAULT_SERVER_STUDENT_CATEGORIES[matchedStudent.rollNo.toString()] || 'progressive',
+        category: dbData.studentCategories?.[matchedStudent.rollNo.toString()],
         avatar: userAvatar,
       },
     });
@@ -943,7 +929,7 @@ async function startServer() {
         session: sessionObj,
         student: {
           ...student,
-          category: dbData.studentCategories?.[student.rollNo.toString()] || DEFAULT_SERVER_STUDENT_CATEGORIES[student.rollNo.toString()] || 'progressive',
+          category: dbData.studentCategories?.[student.rollNo.toString()],
           avatar: userAvatar,
         },
       });
@@ -1081,6 +1067,21 @@ async function startServer() {
   app.post('/api/auth/change-password', (req: Request, res: Response) => {
     const { subject, oldPassword, newPassword } = req.body;
     const clientId = getClientIdentifier(req);
+
+    // This form is reachable before anyone logs in (a teacher changing their
+    // password doesn't need to be mid-session), so the old-password check
+    // below is still the main gate for that case. What must never happen is
+    // a STUDENT session reaching this — so that specific case is blocked
+    // outright, and a teacher session may only touch its own subject.
+    const session = getSession(req);
+    if (session && session.role === 'student') {
+      res.status(403).json({ error: 'Students cannot change a teacher password.' });
+      return;
+    }
+    if (session && session.role === 'teacher' && session.subject !== subject) {
+      res.status(403).json({ error: 'You can only change the password for the subject you are logged in as.' });
+      return;
+    }
 
     // Check lockout first
     const lockStatus = checkLockout(teacherAttempts, clientId);
@@ -1249,7 +1250,7 @@ async function startServer() {
     const studentsWithAvatars = STUDENTS.map((st) => ({
       ...st,
       avatar: dbData.avatars?.students?.[st.rollNo.toString()] || '',
-      category: dbData.studentCategories?.[st.rollNo.toString()] || undefined,
+      category: dbData.studentCategories?.[st.rollNo.toString()],
     }));
     res.json(studentsWithAvatars);
   });
@@ -1257,7 +1258,7 @@ async function startServer() {
   // 5b. Get All Student Categories
   app.get('/api/student-categories', (req: Request, res: Response) => {
     if (!dbData.studentCategories) {
-      dbData.studentCategories = {};
+      dbData.studentCategories = { ...DEFAULT_SERVER_STUDENT_CATEGORIES };
     }
     res.json({
       success: true,
@@ -1273,26 +1274,19 @@ async function startServer() {
       return;
     }
     const { rollNo, category } = req.body;
-    if (!rollNo) {
-      res.status(400).json({ error: 'Valid rollNo is required.' });
+    if (!rollNo || !['beginner', 'progressive', 'proficient'].includes(category)) {
+      res.status(400).json({ error: 'Valid rollNo and category (beginner, progressive, proficient) are required.' });
       return;
     }
 
-    if (!dbData.studentCategories) dbData.studentCategories = {};
-    if (!category || category === 'none' || category === 'unassigned') {
-      delete dbData.studentCategories[rollNo.toString()];
-    } else if (['beginner', 'progressive', 'proficient'].includes(category)) {
-      dbData.studentCategories[rollNo.toString()] = category;
-    } else {
-      res.status(400).json({ error: 'Category must be beginner, progressive, proficient, or unassigned.' });
-      return;
-    }
+    if (!dbData.studentCategories) dbData.studentCategories = { ...DEFAULT_SERVER_STUDENT_CATEGORIES };
+    dbData.studentCategories[rollNo.toString()] = category;
     saveDatabase(dbData);
 
     res.json({
       success: true,
       rollNo,
-      category: dbData.studentCategories[rollNo.toString()] || null,
+      category,
       categories: dbData.studentCategories,
     });
   });
@@ -1310,14 +1304,10 @@ async function startServer() {
       return;
     }
 
-    if (!dbData.studentCategories) dbData.studentCategories = {};
+    if (!dbData.studentCategories) dbData.studentCategories = { ...DEFAULT_SERVER_STUDENT_CATEGORIES };
     updates.forEach((u: any) => {
-      if (u.rollNo) {
-        if (!u.category || u.category === 'none' || u.category === 'unassigned') {
-          delete dbData.studentCategories![u.rollNo.toString()];
-        } else if (['beginner', 'progressive', 'proficient'].includes(u.category)) {
-          dbData.studentCategories![u.rollNo.toString()] = u.category;
-        }
+      if (u.rollNo && ['beginner', 'progressive', 'proficient'].includes(u.category)) {
+        dbData.studentCategories![u.rollNo.toString()] = u.category;
       }
     });
     saveDatabase(dbData);
@@ -1342,12 +1332,15 @@ async function startServer() {
     const { rollNo, category } = req.query;
 
     let targetCategory: string | undefined;
-    if (category && typeof category === 'string') {
+    if (session && session.role === 'student' && session.rollNo) {
+      // A logged-in student always gets their OWN assigned level's homework.
+      // The query string is never trusted here, so a beginner can't fetch
+      // ?category=proficient (or anyone else's rollNo) and see another level.
+      targetCategory = dbData.studentCategories?.[session.rollNo.toString()] || 'all';
+    } else if (category && typeof category === 'string') {
       targetCategory = category;
-    } else if (session && session.role === 'student' && session.rollNo) {
-      targetCategory = dbData.studentCategories?.[session.rollNo.toString()] || 'progressive';
     } else if (rollNo && typeof rollNo === 'string') {
-      targetCategory = dbData.studentCategories?.[rollNo] || 'progressive';
+      targetCategory = dbData.studentCategories?.[rollNo] || 'all';
     }
 
     const result: Record<string, HomeworkRecord> = {};
@@ -1482,20 +1475,29 @@ async function startServer() {
 
   // 7b. Get Homework History (By Date, Subject, Category - latest to oldest, no Sundays/2nd Saturdays)
   app.get('/api/homework/history', (req: Request, res: Response) => {
+    const session = getSession(req);
     const { subject, date, category } = req.query;
     let list = dbData.homeworkHistory || [];
 
     // Filter out Sundays and 2nd Saturdays
     list = list.filter((h) => !isSundayOrSecondSaturday(h.assignedDate));
 
+    if (session && session.role === 'student' && session.rollNo) {
+      // A logged-in student only ever sees general homework plus their OWN
+      // assigned level's entries — never another level's, and this is not
+      // something the query string can override.
+      const ownCategory = dbData.studentCategories?.[session.rollNo.toString()] || 'all';
+      list = list.filter((h) => (h.category || 'all') === 'all' || (h.category || 'all') === ownCategory);
+    } else if (category && typeof category === 'string' && category !== 'all') {
+      // Teachers (and the admin/report views) may filter by any category.
+      list = list.filter((h) => (h.category || 'all') === category);
+    }
+
     if (subject && typeof subject === 'string' && subject !== 'all') {
       list = list.filter((h) => h.subject === subject);
     }
     if (date && typeof date === 'string' && date !== 'all') {
       list = list.filter((h) => h.assignedDate === date);
-    }
-    if (category && typeof category === 'string' && category !== 'all') {
-      list = list.filter((h) => (h.category || 'all') === category);
     }
 
     // Sort latest to oldest
@@ -1512,14 +1514,14 @@ async function startServer() {
 
       if (item.category && item.category !== 'all') {
         targetCount = STUDENTS.filter(
-          (s) => (dbData.studentCategories?.[s.rollNo.toString()] || 'progressive') === item.category
+          (s) => (dbData.studentCategories?.[s.rollNo.toString()] || 'all') === item.category
         ).length;
       }
 
       const todayStr = getTodaySchoolDate();
       if (item.assignedDate === todayStr) {
         STUDENTS.forEach((s) => {
-          const sCat = dbData.studentCategories?.[s.rollNo.toString()] || 'progressive';
+          const sCat = dbData.studentCategories?.[s.rollNo.toString()] || 'all';
           if (!item.category || item.category === 'all' || item.category === sCat) {
             const comp = dbData.completions?.[s.rollNo.toString()];
             if (comp && comp[item.subject]) doneCount++;
@@ -1529,7 +1531,7 @@ async function startServer() {
         const rollDoneSet = new Set<number>();
         (dbData.completionHistory || []).forEach((c) => {
           if (c.date === item.assignedDate && c.subject === item.subject && c.completed) {
-            const sCat = dbData.studentCategories?.[c.rollNo.toString()] || 'progressive';
+            const sCat = dbData.studentCategories?.[c.rollNo.toString()] || 'all';
             if (!item.category || item.category === 'all' || item.category === sCat) {
               rollDoneSet.add(c.rollNo);
             }
@@ -1846,7 +1848,7 @@ async function startServer() {
     const matchedStudent = STUDENTS.find((s) => s.rollNo === rollNum);
     const sName = matchedStudent ? matchedStudent.name : `Roll ${rollNum}`;
     const todayStr = getTodaySchoolDate();
-    const studentCategory = dbData.studentCategories?.[rollStr] || DEFAULT_SERVER_STUDENT_CATEGORIES[rollStr] || 'progressive';
+    const studentCategory = dbData.studentCategories?.[rollStr]; // undefined = not yet assigned by a teacher
 
     const compHistoryItem: CompletionHistoryRecord = {
       id: `comp_${rollStr}_${subject}_${Date.now()}`,
@@ -1925,7 +1927,7 @@ async function startServer() {
     }
     if (category && typeof category === 'string' && category !== 'all') {
       list = list.filter((c) => {
-        const cat = c.category || dbData.studentCategories?.[c.rollNo.toString()] || 'progressive';
+        const cat = c.category || dbData.studentCategories?.[c.rollNo.toString()] || 'all';
         return cat === category;
       });
     }
@@ -1954,7 +1956,7 @@ async function startServer() {
         maths: false,
         hindi: false,
       };
-      const cat = dbData.studentCategories?.[student.rollNo.toString()] || DEFAULT_SERVER_STUDENT_CATEGORIES[student.rollNo.toString()] || 'progressive';
+      const cat = dbData.studentCategories?.[student.rollNo.toString()] || 'all';
       return {
         rollNo: student.rollNo,
         name: student.name,
@@ -1978,7 +1980,6 @@ async function startServer() {
   app.get('/api/doubts', (req: Request, res: Response) => {
     const session = getSession(req);
     const queryRollNo = req.query.rollNo ? parseInt(req.query.rollNo as string, 10) : null;
-    const querySubject = (req.query.subject as string) || null;
 
     if (!session) {
       res.status(401).json({ error: 'Authentication required to view doubts.' });
@@ -1986,37 +1987,24 @@ async function startServer() {
     }
 
     if (session.role === 'student') {
-      // Students only see their own doubts (optionally filtered by subject)
-      let studentDoubts = dbData.doubts.filter((d) => d.rollNo === session.rollNo);
-      if (querySubject && querySubject !== 'all') {
-        studentDoubts = studentDoubts.filter((d) => d.subject === querySubject);
-      }
+      // Students only see their own doubts
+      const studentDoubts = dbData.doubts.filter((d) => d.rollNo === session.rollNo);
       res.json({ messages: studentDoubts });
       return;
     }
 
     if (session.role === 'teacher') {
-      // STRICT REQUIREMENT: Only the teacher to whom the doubt was sent can see it
-      const teacherSubject = session.subject;
-      if (!teacherSubject) {
-        res.status(400).json({ error: 'Teacher subject not assigned.' });
-        return;
-      }
-
-      // Filter doubts to ONLY those sent for THIS teacher's subject
-      const teacherDoubts = dbData.doubts.filter((d) => d.subject === teacherSubject);
-
       if (queryRollNo) {
-        // Teacher viewing a specific student's chat in THIS teacher's subject only
-        const studentDoubts = teacherDoubts.filter((d) => d.rollNo === queryRollNo);
+        // Teacher viewing a specific student's chat
+        const studentDoubts = dbData.doubts.filter((d) => d.rollNo === queryRollNo);
         res.json({ messages: studentDoubts });
         return;
       }
 
-      // Teacher viewing summary of student threads & unread counts for THIS teacher's subject
+      // Teacher viewing summary of student threads & unread counts
       const threadMap: Record<number, { studentName: string; unreadCount: number; lastMessage: string; lastTimestamp: string; totalMessages: number }> = {};
 
-      teacherDoubts.forEach((d) => {
+      dbData.doubts.forEach((d) => {
         if (!threadMap[d.rollNo]) {
           threadMap[d.rollNo] = {
             studentName: d.studentName,
@@ -2042,13 +2030,12 @@ async function startServer() {
         ...data,
       }));
 
-      // Total unread strictly for THIS teacher's subject
-      const totalUnread = teacherDoubts.filter((d) => !d.readByTeacher && d.senderRole === 'student').length;
+      const totalUnread = dbData.doubts.filter((d) => !d.readByTeacher && d.senderRole === 'student').length;
 
       res.json({
         totalUnread,
         threads,
-        allMessages: teacherDoubts,
+        allMessages: dbData.doubts,
       });
       return;
     }
@@ -2072,7 +2059,7 @@ async function startServer() {
 
     let targetRollNo: number;
     let targetStudentName: string;
-    let targetSubject: string = subject || 'english';
+    let targetSubject: string = subject || 'general';
     let targetTeacherName: string = '';
     const senderRole = session.role;
 
@@ -2080,9 +2067,9 @@ async function startServer() {
       targetRollNo = session.rollNo!;
       targetStudentName = session.studentName!;
       targetSubject = subject || 'english';
-      targetTeacherName = TEACHER_INFO_BY_SUBJECT[targetSubject]?.name || dbData.homework[targetSubject]?.teacherName || 'Subject Teacher';
+      targetTeacherName = dbData.homework[targetSubject]?.teacherName || 'Subject Teacher';
     } else {
-      // Teacher replying - strictly locked to teacher's subject
+      // Teacher replying
       if (!rollNo) {
         res.status(400).json({ error: 'rollNo is required for teacher reply.' });
         return;
@@ -2090,8 +2077,8 @@ async function startServer() {
       targetRollNo = parseInt(rollNo, 10);
       const student = STUDENTS.find((s) => s.rollNo === targetRollNo);
       targetStudentName = student ? student.name : `Roll ${targetRollNo}`;
-      targetSubject = session.subject || 'english';
-      targetTeacherName = session.teacherName || TEACHER_INFO_BY_SUBJECT[session.subject || 'english']?.name || 'Teacher';
+      targetSubject = session.subject || 'general';
+      targetTeacherName = session.teacherName || 'Teacher';
     }
 
     const newDoubt: DoubtMessageRecord = {
@@ -2122,7 +2109,7 @@ async function startServer() {
       return;
     }
 
-    const { rollNo, subject } = req.body;
+    const { rollNo } = req.body;
     if (!rollNo) {
       res.status(400).json({ error: 'rollNo is required.' });
       return;
@@ -2131,11 +2118,9 @@ async function startServer() {
     const targetRoll = parseInt(rollNo, 10);
 
     if (session.role === 'teacher') {
-      const teacherSubject = session.subject;
       let markedCount = 0;
       dbData.doubts.forEach((d) => {
-        // Teacher only marks messages read for their own subject
-        if (d.rollNo === targetRoll && d.subject === teacherSubject && !d.readByTeacher) {
+        if (d.rollNo === targetRoll && !d.readByTeacher) {
           d.readByTeacher = true;
           markedCount++;
         }
@@ -2150,8 +2135,7 @@ async function startServer() {
     if (session.role === 'student' && session.rollNo === targetRoll) {
       let markedCount = 0;
       dbData.doubts.forEach((d) => {
-        const matchSubj = !subject || subject === 'all' || d.subject === subject;
-        if (d.rollNo === targetRoll && matchSubj && !d.readByStudent) {
+        if (d.rollNo === targetRoll && !d.readByStudent) {
           d.readByStudent = true;
           markedCount++;
         }
@@ -2188,13 +2172,7 @@ async function startServer() {
 
     const targetMessage = dbData.doubts[index];
 
-    // Teachers can only delete messages belonging to their subject
-    if (session.role === 'teacher' && targetMessage.subject !== session.subject) {
-      res.status(403).json({ error: 'Unauthorized to delete messages for another teacher.' });
-      return;
-    }
-
-    // Students can only delete messages from their own thread
+    // Teachers can delete any message in their school; students can delete messages from their own thread
     if (session.role === 'student' && targetMessage.rollNo !== session.rollNo) {
       res.status(403).json({ error: 'Unauthorized to delete this message.' });
       return;
@@ -2205,7 +2183,7 @@ async function startServer() {
     res.json({ success: true, messageId });
   });
 
-  // 15. Clear Entire Chat Thread for a Student (strictly per teacher subject)
+  // 15. Clear Entire Chat Thread for a Student (e.g. Roll 501 Abhishrey or others)
   app.post('/api/doubts/clear-thread', (req: Request, res: Response) => {
     const session = getSession(req);
     if (!session) {
@@ -2213,7 +2191,7 @@ async function startServer() {
       return;
     }
 
-    const { rollNo, subject } = req.body;
+    const { rollNo } = req.body;
     if (!rollNo) {
       res.status(400).json({ error: 'rollNo is required.' });
       return;
@@ -2221,40 +2199,18 @@ async function startServer() {
 
     const targetRoll = parseInt(rollNo, 10);
 
-    // If teacher: ONLY clear doubts for this student in THIS teacher's subject
-    if (session.role === 'teacher') {
-      const teacherSubject = session.subject;
-      const initialLength = dbData.doubts.length;
-      dbData.doubts = dbData.doubts.filter(
-        (d) => !(d.rollNo === targetRoll && d.subject === teacherSubject)
-      );
-      const deletedCount = initialLength - dbData.doubts.length;
-      saveDatabase(dbData);
-      res.json({ success: true, rollNo: targetRoll, subject: teacherSubject, deletedCount });
+    // Students can only clear their own thread; teachers can clear any student's thread
+    if (session.role === 'student' && session.rollNo !== targetRoll) {
+      res.status(403).json({ error: 'Unauthorized to clear this thread.' });
       return;
     }
 
-    // Students can only clear their own thread
-    if (session.role === 'student') {
-      if (session.rollNo !== targetRoll) {
-        res.status(403).json({ error: 'Unauthorized to clear this thread.' });
-        return;
-      }
-      const initialLength = dbData.doubts.length;
-      dbData.doubts = dbData.doubts.filter((d) => {
-        if (d.rollNo !== targetRoll) return true;
-        if (subject && subject !== 'all') {
-          return d.subject !== subject;
-        }
-        return false;
-      });
-      const deletedCount = initialLength - dbData.doubts.length;
-      saveDatabase(dbData);
-      res.json({ success: true, rollNo: targetRoll, deletedCount });
-      return;
-    }
+    const initialLength = dbData.doubts.length;
+    dbData.doubts = dbData.doubts.filter((d) => d.rollNo !== targetRoll);
+    const deletedCount = initialLength - dbData.doubts.length;
 
-    res.status(403).json({ error: 'Forbidden' });
+    saveDatabase(dbData);
+    res.json({ success: true, rollNo: targetRoll, deletedCount });
   });
 
   // 16. Birthdays API
@@ -2274,115 +2230,6 @@ async function startServer() {
     res.json({
       date: today.toISOString(),
       celebratingStudents: celebrating,
-    });
-  });
-
-  // 16b. Announcements API
-  // Get all announcements (with unread count for students)
-  app.get('/api/announcements', (req: Request, res: Response) => {
-    const session = getSession(req);
-    const announcements = dbData.announcements || [];
-    // Sort latest first
-    const sorted = [...announcements].sort(
-      (a, b) => new Date(b.postedAt).getTime() - new Date(a.postedAt).getTime()
-    );
-
-    let unreadCount = 0;
-    if (session && session.role === 'student' && session.rollNo) {
-      unreadCount = sorted.filter(
-        (a) => !(a.readBy || []).includes(session.rollNo!)
-      ).length;
-    }
-
-    res.json({
-      success: true,
-      announcements: sorted,
-      unreadCount,
-    });
-  });
-
-  // Post / Paste new announcement (Teacher only)
-  app.post('/api/announcements', (req: Request, res: Response) => {
-    const session = getSession(req);
-    if (!session || session.role !== 'teacher') {
-      res.status(403).json({ error: 'Unauthorized: Only teachers can post announcements.' });
-      return;
-    }
-
-    const { title, content, category, attachments } = req.body;
-    if (!title || !title.trim() || !content || !content.trim()) {
-      res.status(400).json({ error: 'Title and content are required.' });
-      return;
-    }
-
-    const validCategories = ['general', 'exam', 'holiday', 'urgent', 'homework'];
-    const chosenCat = validCategories.includes(category) ? category : 'general';
-
-    const newAnnouncement: AnnouncementRecord = {
-      id: `ann_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      title: title.trim(),
-      content: content.trim(),
-      category: chosenCat,
-      postedBy: session.teacherName || 'Faculty',
-      teacherSubject: session.subject || undefined,
-      postedAt: new Date().toISOString(),
-      attachments: Array.isArray(attachments) ? attachments : [],
-      readBy: [],
-    };
-
-    if (!dbData.announcements) dbData.announcements = [];
-    dbData.announcements.unshift(newAnnouncement);
-    saveDatabase(dbData);
-
-    res.json({
-      success: true,
-      announcement: newAnnouncement,
-      message: 'Announcement posted successfully.',
-    });
-  });
-
-  // Mark announcement as read by student
-  app.post('/api/announcements/:id/read', (req: Request, res: Response) => {
-    const session = getSession(req);
-    const { id } = req.params;
-    const bodyRoll = req.body.rollNo ? parseInt(req.body.rollNo, 10) : undefined;
-    const rollNo = (session && session.role === 'student' && session.rollNo) || bodyRoll;
-
-    if (!rollNo) {
-      res.status(400).json({ error: 'Student rollNo is required.' });
-      return;
-    }
-
-    if (!dbData.announcements) dbData.announcements = [];
-    const item = dbData.announcements.find((a) => a.id === id);
-    if (item) {
-      if (!item.readBy) item.readBy = [];
-      if (!item.readBy.includes(rollNo)) {
-        item.readBy.push(rollNo);
-        saveDatabase(dbData);
-      }
-    }
-
-    res.json({ success: true });
-  });
-
-  // Delete announcement (Teacher only)
-  app.delete('/api/announcements/:id', (req: Request, res: Response) => {
-    const session = getSession(req);
-    if (!session || session.role !== 'teacher') {
-      res.status(403).json({ error: 'Unauthorized: Only teachers can delete announcements.' });
-      return;
-    }
-
-    const { id } = req.params;
-    if (!dbData.announcements) dbData.announcements = [];
-    const initialLen = dbData.announcements.length;
-    dbData.announcements = dbData.announcements.filter((a) => a.id !== id);
-    saveDatabase(dbData);
-
-    res.json({
-      success: true,
-      deleted: initialLen > dbData.announcements.length,
     });
   });
 
@@ -2507,7 +2354,7 @@ async function startServer() {
 
     const defaultIcon =
       subject === 'english'
-        ? '🔤'
+        ? 'ABC'
         : subject === 'hindi'
         ? 'अ'
         : subject === 'twau'

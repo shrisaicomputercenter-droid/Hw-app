@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* Keep content clear of the notch / status bar on tall phones */
+:root {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-padding-top: env(safe-area-inset-top, 0px);
+}
+
+body {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
