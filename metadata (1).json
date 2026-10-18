@@ -1,0 +1,6 @@
+{
+  "name": "PM SHRI Kendriya Vidyalaya Mandla",
+  "description": "Official Class 5 Homework and Student-Teacher Portal for PM SHRI Kendriya Vidyalaya Mandla.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

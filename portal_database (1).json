@@ -1,0 +1,381 @@
+{
+  "homework": {
+    "english": {
+      "subject": "english",
+      "subjectName": "English",
+      "teacherName": "Ms. Riya Verma Ma'am",
+      "content": "",
+      "updatedAt": "2026-09-29T11:21:22.757Z",
+      "assignedDate": "29 Sep 2026",
+      "attachments": []
+    },
+    "twau": {
+      "subject": "twau",
+      "subjectName": "TWAU",
+      "teacherName": "Mrs. Smriti Vats Ma'am",
+      "content": "",
+      "updatedAt": "2026-09-29T11:21:22.757Z",
+      "assignedDate": "29 Sep 2026",
+      "attachments": []
+    },
+    "maths": {
+      "subject": "maths",
+      "subjectName": "Maths",
+      "teacherName": "Mr. Umesh Kumar Chourasiya Sir",
+      "content": "",
+      "updatedAt": "2026-09-29T11:21:22.757Z",
+      "assignedDate": "29 Sep 2026",
+      "attachments": []
+    },
+    "hindi": {
+      "subject": "hindi",
+      "subjectName": "Hindi",
+      "teacherName": "Ms. Sakshi Baliyan",
+      "content": "",
+      "updatedAt": "2026-09-29T11:21:22.757Z",
+      "assignedDate": "29 Sep 2026",
+      "attachments": []
+    }
+  },
+  "completions": {
+    "501": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "502": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "503": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "504": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "505": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "506": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "507": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "508": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "509": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "510": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "511": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "512": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "513": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "514": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "515": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "516": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "517": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "518": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "519": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "520": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "521": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "522": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "523": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "524": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "525": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "526": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "527": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "528": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "529": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "530": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "531": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "532": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "533": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "534": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "535": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "536": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "537": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "538": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "539": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "540": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    },
+    "541": {
+      "english": false,
+      "twau": false,
+      "maths": false,
+      "hindi": false
+    }
+  },
+  "doubts": [],
+  "teacherPasswords": {
+    "english": "1234",
+    "twau": "2345",
+    "maths": "3456",
+    "hindi": "4567"
+  },
+  "studentPasswords": {
+    "501": "501",
+    "502": "502",
+    "503": "503",
+    "504": "504",
+    "505": "505",
+    "506": "506",
+    "507": "507",
+    "508": "508",
+    "509": "509",
+    "510": "510",
+    "511": "511",
+    "512": "512",
+    "513": "513",
+    "514": "514",
+    "515": "515",
+    "516": "516",
+    "517": "517",
+    "518": "518",
+    "519": "519",
+    "520": "520",
+    "521": "521",
+    "522": "522",
+    "523": "523",
+    "524": "524",
+    "525": "525",
+    "526": "526",
+    "527": "527",
+    "528": "528",
+    "529": "529",
+    "530": "530",
+    "531": "531",
+    "532": "532",
+    "533": "533",
+    "534": "534",
+    "535": "535",
+    "536": "536",
+    "537": "537",
+    "538": "538",
+    "539": "539",
+    "540": "540",
+    "541": "541"
+  },
+  "pdfFiles": [],
+  "avatars": {
+    "students": {},
+    "teachers": {}
+  },
+  "sessions": {
+    "tok_1790679760647_2y3m5gia": {
+      "role": "teacher",
+      "teacherId": "teacher_hindi",
+      "teacherName": "Ms. Sakshi Baliyan",
+      "subject": "hindi",
+      "avatar": "",
+      "token": "tok_1790679760647_2y3m5gia",
+      "createdAt": 1790679760648
+    },
+    "tok_1790680807305_340p97rk": {
+      "role": "teacher",
+      "teacherId": "teacher_english",
+      "teacherName": "Ms. Riya Verma Ma'am",
+      "subject": "english",
+      "avatar": "",
+      "token": "tok_1790680807305_340p97rk",
+      "createdAt": 1790680807305
+    },
+    "tok_1790751299102_yww5ldej": {
+      "role": "student",
+      "rollNo": 530,
+      "studentName": "Pukar Kori",
+      "avatar": "",
+      "token": "tok_1790751299102_yww5ldej",
+      "createdAt": 1790751299102
+    }
+  },
+  "homeworkHistory": [],
+  "completionHistory": [],
+  "categoryHomework": {
+    "english": {},
+    "twau": {},
+    "maths": {},
+    "hindi": {}
+  },
+  "studentCategories": {},
+  "announcements": []
+}
